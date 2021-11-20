@@ -1,10 +1,11 @@
 #include <stdio.h>
 #include <getopt.h>
 
-#include "cmdline.h"
-#include "dpdk_common.h"
+#include <dpdk_common.h>
 
-void parsecmdline(struct cmdline *cmd, int argc, char **argv)
+#include "cmdline.h"
+
+int parsecmdline(struct cmdline *cmd, int argc, char **argv)
 {
     int c = -1, ret;
 

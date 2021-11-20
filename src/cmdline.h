@@ -9,4 +9,6 @@ struct cmdline
     unsigned int promisc : 1;
 
 };
+
+int parsecmdline(struct cmdline *cmd, int argc, char **argv);
 #endif
