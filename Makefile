@@ -1,7 +1,11 @@
 
 APP = simple_l2fwd
 BUILDDIR=build
+COMMONDIR=The-DPDK-Common
 SRCDIR=src
+
+COMMONOBJ=$(COMMONDIR)/objs/dpdk_common.o
+COMMONSRC=$(COMMONDIR)/src
 
 SIMPLE_L2FWD := $(SRCDIR)/simple_l2fwd.c
 DROPUDP8080 := $(SRCDIR)/dropudp8080.c
@@ -35,11 +39,14 @@ $(error "Cannot generate statically-linked binaries with this version of pkg-con
 endif
 endif
 
-$(BUILDDIR)/$(APP)-shared: $(SIMPLE_L2FWD) $(DROPUDP8080) Makefile $(PC_FILE) | build
-	$(CC) $(CFLAGS) $(SIMPLE_L2FWD) -o $@ $(LDFLAGS) $(LDFLAGS_SHARED)
-	$(CC) $(CFLAGS) $(DROPUDP8080) -o $@ $(LDFLAGS) $(LDFLAGS_SHARED)
+commonbuild:
+	$(MAKE) -C $(COMMONDIR)
 
-$(BUILDDIR)/$(APP)-static: $(SIMPLE_L2FWD) $(DROPUDP8080) Makefile $(PC_FILE) | build
+$(BUILDDIR)/$(APP)-shared: commonbuild $(COMMONOBJ) $(SIMPLE_L2FWD) $(DROPUDP8080) Makefile $(PC_FILE) | build
+	$(CC) $(CFLAGS) $(SIMPLE_L2FWD) -o $@ $(LDFLAGS) $(COMMONOBJ) $(LDFLAGS_SHARED)
+	$(CC) $(CFLAGS) $(DROPUDP8080) -o $@ $(LDFLAGS) $(COMMONOBJ) $(LDFLAGS_SHARED)
+
+$(BUILDDIR)/$(APP)-static: commonbuild $(SIMPLE_L2FWD) $(DROPUDP8080) Makefile $(PC_FILE) | build
 	$(CC) $(CFLAGS) $(SIMPLE_L2FWD) -o $@ $(LDFLAGS) $(LDFLAGS_STATIC)
 	$(CC) $(CFLAGS) $(DROPUDP8080) -o $@ $(LDFLAGS) $(LDFLAGS_STATIC)
 
@@ -49,4 +56,5 @@ build:
 .PHONY: clean
 clean:
 	rm -f $(BUILDDIR)/$(APP) $(BUILDDIR)/$(APP)-static $(BUILDDIR)/$(APP)-shared
+	$(MAKE) -C $(COMMONDIR) clean
 	test -d $(BUILDDIR) && rmdir -p $(BUILDDIR) || true
