@@ -7,6 +7,11 @@ SRCDIR=src
 COMMONOBJ=$(COMMONDIR)/objs/dpdk_common.o
 COMMONSRC=$(COMMONDIR)/src
 
+CMDLINEOBJ=cmdline.o
+CMDLINESRC=cmdline.c
+
+OBJS=$(COMMONOBJ) $(BUILDDIR)/$(CMDLINEOBJ)
+
 SIMPLE_L2FWD := $(SRCDIR)/simple_l2fwd.c
 DROPUDP8080 := $(SRCDIR)/dropudp8080.c
 
@@ -39,20 +44,18 @@ $(error "Cannot generate statically-linked binaries with this version of pkg-con
 endif
 endif
 
-commonbuild:
-	$(MAKE) -C $(COMMONDIR)
-
-$(BUILDDIR)/$(APP)-shared: commonbuild $(COMMONOBJ) $(SIMPLE_L2FWD) $(DROPUDP8080) Makefile $(PC_FILE) | build
-	$(CC) -I $(COMMONDIR)/$(SRCDIR) $(CFLAGS) $(SIMPLE_L2FWD) -o $@ $(LDFLAGS) $(COMMONOBJ) $(LDFLAGS_SHARED)
-	$(CC) -I $(COMMONDIR)/$(SRCDIR) $(CFLAGS) $(DROPUDP8080) -o $@ $(LDFLAGS) $(COMMONOBJ) $(LDFLAGS_SHARED)
-
-$(BUILDDIR)/$(APP)-static: commonbuild $(SIMPLE_L2FWD) $(DROPUDP8080) Makefile $(PC_FILE) | build
-	$(CC) -I $(COMMONDIR)/$(SRCDIR) $(CFLAGS) $(SIMPLE_L2FWD) -o $@ $(LDFLAGS) $(LDFLAGS_STATIC)
-	$(CC) -I $(COMMONDIR)/$(SRCDIR) $(CFLAGS) $(DROPUDP8080) -o $@ $(LDFLAGS) $(LDFLAGS_STATIC)
-
 build:
 	@mkdir -p $@
-
+commonbuild:
+	$(MAKE) -C $(COMMONDIR)
+cmdlinebuild: Makefile $(PC_FILE) | build
+	$(CC) -I $(COMMONDIR)/$(SRCDIR) -c $(CFLAGS) -o $(BUILDDIR)/$(CMDLINEOBJ) $(LDFLAGS) $(LDFLAGS_SHARED) $(SRCDIR)/$(CMDLINESRC)
+$(BUILDDIR)/$(APP)-shared: commonbuild cmdlinebuild $(OBJS) $(SIMPLE_L2FWD) $(DROPUDP8080) Makefile $(PC_FILE) | build
+	$(CC) -I $(COMMONDIR)/$(SRCDIR) $(CFLAGS) $(SIMPLE_L2FWD) -o $@ $(LDFLAGS) $(OBJS) $(LDFLAGS_SHARED)
+	$(CC) -I $(COMMONDIR)/$(SRCDIR) $(CFLAGS) $(DROPUDP8080) -o $@ $(LDFLAGS) $(OBJS) $(LDFLAGS_SHARED)
+$(BUILDDIR)/$(APP)-static: commonbuild cmdlinebuild $(OBJS) $(SIMPLE_L2FWD) $(DROPUDP8080) Makefile $(PC_FILE) | build
+	$(CC) -I $(COMMONDIR)/$(SRCDIR) $(CFLAGS) $(SIMPLE_L2FWD) -o $@ $(LDFLAGS) $(OBJS) $(LDFLAGS_STATIC)
+	$(CC) -I $(COMMONDIR)/$(SRCDIR) $(CFLAGS) $(DROPUDP8080) -o $@ $(LDFLAGS) $(OBJS) $(LDFLAGS_STATIC)
 .PHONY: clean
 clean:
 	rm -f $(BUILDDIR)/$(APP) $(BUILDDIR)/$(APP)-static $(BUILDDIR)/$(APP)-shared
