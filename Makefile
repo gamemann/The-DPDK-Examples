@@ -4,7 +4,7 @@ BUILDDIR=build
 SRCDIR=src
 
 SIMPLE_L2FWD := $(SRCDIR)/simple_l2fwd.c
-DROPUDP8080 := $(SRCDIR)}/dropudp8080.c
+DROPUDP8080 := $(SRCDIR)/dropudp8080.c
 
 PKGCONF ?= pkg-config
 
