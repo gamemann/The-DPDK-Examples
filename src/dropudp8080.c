@@ -10,35 +10,129 @@
 #include <signal.h>
 
 #include <dpdk_common.h>
+#include <rte_ip.h>
+#include <rte_udp.h>
 
 #include "cmdline.h"
 
-/* Global Variables */
+/* Helpful defines */
+#ifndef htons
+#define htons(o) cpu_to_be16(o)
+#endif
 
-static void forwardpacket(struct rte_mbuf *pckt, unsigned portid)
+#define ETHTYPE_IPV4 0x0800
+#define PROTOCOL_UDP 0x11
+
+/**
+ * Swaps the source and destination ethernet MAC addresses.
+ * 
+ * @param eth A pointer to the ethernet header (struct rte_ether_hdr).
+ * 
+ * @return Void
+**/
+static void swap_eth(struct rte_ether_hdr *eth)
 {
+    struct rte_ether_addr tmp;
+    rte_ether_addr_copy(&eth->src_addr, &tmp);
+
+    rte_ether_addr_copy(&eth->dst_addr, &eth->src_addr);
+    rte_ether_addr_copy(&tmp, &eth->dst_addr);
+}
+
+/**
+ * Inspects a packet and checks against UDP destination port 8080.
+ * 
+ * @param pckt A pointer to the rte_mbuf container the packet data.
+ * @param portid The port ID we're inspecting from.
+ * 
+ * @return Void
+**/
+static void inspect_pckt(struct rte_mbuf *pckt, unsigned portid)
+{
+    // Data points to the start of packet data within the mbuf.
+    void *data = pckt->buf_addr;
+
+    // Initialize ethernet header.
+    struct rte_ether_hdr *eth = data;
+
+    // Make sure we're dealing with IPv4.
+    if (eth->ether_type != htons(ETHTYPE_IPV4))
+    {
+        return;
+    }
+
+    // Initialize IPv4 header.
+    struct rte_ipv4_hdr *iph = data + sizeof(struct rte_ether_hdr);
+
+    // Check to make sure we're dealing with UDP.
+    if (iph->next_proto_id != PROTOCOL_UDP)
+    {
+        return;
+    }
+
+    // Initialize UDP header.
+    struct rte_udp_hdr *udph = data + sizeof(struct rte_ether_hdr) + (iph->ihl * 4);
+
+    // Check destination port.
+    if (udph->dst_port == htons(8080))
+    {
+        // Drop packet.
+        return;
+    }
+
+    // Swap MAC addresses.
+    swap_eth(eth);
+
+    // Otherwise, forward packet.
     unsigned dst_port;
     struct rte_eth_dev_tx_buffer *buffer;
 
+    // Retrieve what port we're going out of and TX buffer to use.
     dst_port = dst_ports[portid];
     buffer = tx_buffer[dst_port];
     
     rte_eth_tx_buffer(dst_port, 0, buffer, pckt);
 }
 
-static void pcktloop(void)
+/**
+ * Called on all l-cores and retrieves all packets to that RX queue.
+ * 
+ * @return Void
+**/
+static void pckt_loop(void)
 {
+    // An array of packets witin burst.
     struct rte_mbuf *pckts_burst[MAX_PCKT_BURST];
+
+    // Single mbuf we'll use to inspect.
     struct rte_mbuf *pckt;
-    int sent;
+
+    // Retrieve the l-core ID.
     unsigned lcore_id = rte_lcore_id();
-    unsigned i, j, portid, nb_rx;
+
+    // Iteration variables.
+    unsigned i;
+    unsigned j;
+
+    // the port ID and number of packets from RX queue.
+    unsigned port_id;
+    unsigned nb_rx;
+
+    // The specific RX queue config for the l-core.
     struct lcore_queue_conf *qconf = &lcore_queue_conf[lcore_id];
-    const __u64 draintsc = (rte_get_tsc_hz() + US_PER_S -1) / US_PER_S * BURST_TX_DRAIN_US;
+
+    // For TX draining.
+    const __u64 draintsc = (rte_get_tsc_hz() + US_PER_S - 1) / US_PER_S * BURST_TX_DRAIN_US;
+
+    // Pointer to TX buffer.
     struct rte_eth_dev_tx_buffer *buffer;
 
-    __u64 prevtsc = 0, difftsc, curtsc;
+    // Create timer variables.
+    __u64 prevtsc = 0;
+    __u64 difftsc;
+    __u64 curtsc;
 
+    // If we have no RX ports under this l-core, return because the l-core has nothing else to do.
     if (qconf->num_rx_ports == 0)
     {
         RTE_LOG(INFO, USER1, "lcore %u has nothing to do.\n", lcore_id);
@@ -46,58 +140,99 @@ static void pcktloop(void)
         return;
     }
 
+    // Log message.
     RTE_LOG(INFO, USER1, "Looping with lcore %u.\n", lcore_id);
 
+    // 
     for (i = 0; i < qconf->num_rx_ports; i++)
     {
-        portid = qconf->rx_port_list[i];
+        port_id = qconf->rx_port_list[i];
     }
 
+    // Create while loop relying on quit variable.
     while (!quit)
     {
+        // Get current timestamp.
         curtsc = rte_rdtsc();
 
+        // Calculate the difference.
         difftsc = curtsc - prevtsc;
 
+        // Check if we need to flush the TX buffer.
         if (unlikely(difftsc > draintsc))
         {
+            // Loop through all RX ports.
             for (i = 0; i < qconf->num_rx_ports; i++)
             {
-                portid = dst_ports[qconf->rx_port_list[i]];
-                buffer = tx_buffer[portid];
+                // Retrieve correct port_id and buffer.
+                port_id = dst_ports[qconf->rx_port_list[i]];
+                buffer = tx_buffer[port_id];
 
-                rte_eth_tx_buffer_flush(portid, 0, buffer);
+                // Flush buffer.
+                rte_eth_tx_buffer_flush(port_id, 0, buffer);
             }
 
+            // Assign prevtsc.
             prevtsc = curtsc;
         }
 
         // Read all packets from RX queue.
         for (i = 0; i < qconf->num_rx_ports; i++)
         {
-            portid = qconf->rx_port_list[i];
-            nb_rx = rte_eth_rx_burst(portid, 0, pckts_burst, MAX_PCKT_BURST);
+            // Retrieve correct port ID.
+            port_id = qconf->rx_port_list[i];
 
+            // Burst RX which will assign nb_rx to the amount of packets we have from the RX queue.
+            nb_rx = rte_eth_rx_burst(port_id, 0, pckts_burst, MAX_PCKT_BURST);
+
+            // Loop through the amount of packets we have from the RX queue.
             for (j = 0; j < nb_rx; j++)
             {
+                // Assign the individual packet mbuf.
                 pckt = pckts_burst[j];
+
+                // Prefetch the packet.
                 rte_prefetch0(rte_pktmbuf_mtod(pckt, void *));
-                forwardpacket(pckt, portid);
+
+                // Lastly, inspect the packet.
+                inspect_pckt(pckt, port_id);
             }
         }
     }
 }
 
+/**
+ * Called when an l-core is started.
+ * 
+ * @param tmp An unused variable.
+ * 
+ * @return Void
+**/
 static int launch_lcore(__rte_unused void *tmp)
 {
-    pcktloop();
+    pckt_loop();
 }
 
+/**
+ * The signal callback/handler.
+ * 
+ * @param tmp An unused variable.
+ * 
+ * @return Void
+**/
 static void sign_hdl(int tmp)
 {
     quit = 1;
 }
 
+/**
+ * The main function call.
+ * 
+ * @param argc The amount of arguments.
+ * @param argv A pointer to the arguments array.
+ * 
+ * @return Return code.
+**/
 int main(int argc, char **argv)
 {
     // Initialiize result variables.
@@ -160,7 +295,7 @@ int main(int argc, char **argv)
 
     dpdkc_check_ret(&ret);
 
-    // Determine number of mbufs to have.
+    // Initialize mbuf pool.
     ret = dpdkc_create_mbuf();
 
     dpdkc_check_ret(&ret);
