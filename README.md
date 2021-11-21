@@ -30,7 +30,7 @@ You may receive `ninja` and `meson` using the following.
 ```
 sudo apt update
 sudo apt install python3 python3-pip
-sudo pip3 install meson # Pip3 is installed because 'apt' has an outdated version of Meson usually.
+sudo pip3 install meson # Pip3 is used because 'apt' has an outdated version of Meson usually.
 sudo apt install ninja-build
 ```
 
