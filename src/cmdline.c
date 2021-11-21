@@ -7,14 +7,15 @@
 
 int parsecmdline(struct cmdline *cmd, int argc, char **argv)
 {
-    int c = -1, ret;
-    struct dpdkc_error cret =
+    int c = -1;
+    struct dpdkc_ret ret =
     {
         .err_num = 0,
         .gen_msg = NULL,
         .port_id = -1,
         .rx_id = -1,
-        .tx_id = -1
+        .tx_id = -1,
+        .data = NULL
     };
 
     static const struct option lopts[] =
@@ -31,7 +32,9 @@ int parsecmdline(struct cmdline *cmd, int argc, char **argv)
         switch (c)
         {
             case 'p':
-                enabled_port_mask = dpdkc_parse_arg_port_mask(optarg);
+                ret = dpdkc_parse_arg_port_mask(optarg);
+
+                enabled_port_mask = *((unsigned int *)ret.data);
 
                 if (enabled_port_mask == 0)
                 {
@@ -41,20 +44,23 @@ int parsecmdline(struct cmdline *cmd, int argc, char **argv)
                 break;
 
             case 'P':
-                cret = dpdkc_parse_arg_port_pair_config(optarg);
+                ret = dpdkc_parse_arg_port_pair_config(optarg);
 
-                dpdkc_check_error(&cret);
+                dpdkc_check_ret(&ret);
 
                 break;
 
             case 'q':
-                rx_queue_pl = dpdkc_parse_arg_queues(optarg);
-                cmd->queues = rx_queue_pl;
+                ret = dpdkc_parse_arg_queues(optarg);
 
+                rx_queue_pl = *((unsigned short *)ret.data);
+                
                 if (rx_queue_pl == 0)
                 {
                     rte_exit(EXIT_FAILURE, "Invalid queue number argument with -q or --queues.\n");
                 }
+
+                cmd->queues = rx_queue_pl;
 
                 break;
 

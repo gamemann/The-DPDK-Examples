@@ -39,7 +39,7 @@ static void pcktloop(void)
 
     __u64 prevtsc = 0, difftsc, curtsc;
 
-    if (qconf->numrxport == 0)
+    if (qconf->num_rx_ports == 0)
     {
         RTE_LOG(INFO, USER1, "lcore %u has nothing to do.\n", lcore_id);
 
@@ -48,9 +48,9 @@ static void pcktloop(void)
 
     RTE_LOG(INFO, USER1, "Looping with lcore %u.\n", lcore_id);
 
-    for (i = 0; i < qconf->numrxport; i++)
+    for (i = 0; i < qconf->num_rx_ports; i++)
     {
-        portid = qconf->rxportlist[i];
+        portid = qconf->rx_port_list[i];
     }
 
     while (!quit)
@@ -61,9 +61,9 @@ static void pcktloop(void)
 
         if (unlikely(difftsc > draintsc))
         {
-            for (i = 0; i < qconf->numrxport; i++)
+            for (i = 0; i < qconf->num_rx_ports; i++)
             {
-                portid = dst_ports[qconf->rxportlist[i]];
+                portid = dst_ports[qconf->rx_port_list[i]];
                 buffer = tx_buffer[portid];
 
                 rte_eth_tx_buffer_flush(portid, 0, buffer);
@@ -73,9 +73,9 @@ static void pcktloop(void)
         }
 
         // Read all packets from RX queue.
-        for (i = 0; i < qconf->numrxport; i++)
+        for (i = 0; i < qconf->num_rx_ports; i++)
         {
-            portid = qconf->rxportlist[i];
+            portid = qconf->rx_port_list[i];
             nb_rx = rte_eth_rx_burst(portid, 0, pckts_burst, MAX_PCKT_BURST);
 
             for (j = 0; j < nb_rx; j++)
@@ -101,24 +101,27 @@ static void sign_hdl(int tmp)
 int main(int argc, char **argv)
 {
     // Initialiize result variables.
-    int ret = -1;
-    struct dpdkc_error cret =
+    struct dpdkc_ret ret =
     {
         .err_num = 0,
         .gen_msg = NULL,
         .port_id = -1,
         .rx_id = -1,
-        .tx_id = -1
+        .tx_id = -1,
+        .data = NULL
     };
 
-    if ((ret = dpdkc_eal_init(argc, argv)) < 0)
-    {
-        rte_exit(EXIT_FAILURE, "Failed to initialize EAL. Error => %s (%d).\n", strerror(-ret), ret);
-    }
+    // Initialize EAL and check.
+    ret = dpdkc_eal_init(argc, argv);
+
+    dpdkc_check_ret(&ret);
+
+    // Retrieve number of arguments to adjust.
+    int arg_adj = *((int *)ret.data);
 
     // Calculate difference in arguments due to EAL init.
-    argc -= ret;
-    argv += ret;
+    argc -= arg_adj;
+    argv += arg_adj;
 
     // Setup signal.
     quit = 0;
@@ -130,22 +133,21 @@ int main(int argc, char **argv)
     parsecmdline(&cmd, argc, argv);
 
     // Retrieve the amount of ethernet ports and check.
-    if ((nb_ports = dpdkc_get_nb_ports()) == 0)
-    {
-        rte_exit(EXIT_FAILURE, "No ethernet ports available.\n");
-    }
+    ret = dpdkc_get_nb_ports();
+
+    dpdkc_check_ret(&ret);
+
+    nb_ports = *((unsigned short *)ret.data);
 
     // Check port pairs.
-    if ((ret = dpdkc_check_port_pairs()) < 0)
-    {
-        rte_exit(EXIT_FAILURE, "Port pairs are invalid.\n");
-    }
+    ret = dpdkc_check_port_pairs();
+
+    dpdkc_check_ret(&ret);
 
     // Make sure port mask is valid.
-    if ((ret = dpdkc_ports_are_valid()) < 0)
-    {
-        rte_exit(EXIT_FAILURE, "Invalid port mask. Try 0x%x.\n", (1 << nb_ports) - 1);
-    }
+    ret = dpdkc_ports_are_valid();
+
+    dpdkc_check_ret(&ret);
 
     // Reset destination ports.
     dpdkc_reset_dst_ports();
@@ -154,28 +156,25 @@ int main(int argc, char **argv)
     dpdkc_populate_dst_ports();
 
     // Initialize the port and queue combination for each l-core.
-    if ((ret = dpdkc_ports_queues_mapping()) < 0)
-    {
-        rte_exit(EXIT_FAILURE, "Not enough cores to support l-cores.\n");
-    }
+    ret = dpdkc_ports_queues_mapping();
+
+    dpdkc_check_ret(&ret);
 
     // Determine number of mbufs to have.
-    if ((ret = dpdkc_create_mbuf()) < 0)
-    {
-        rte_exit(EXIT_FAILURE, "Failed to allocate packet's mbuf. Error => %s (%d).\n", strerror(-ret), ret);
-    }
+    ret = dpdkc_create_mbuf();
+
+    dpdkc_check_ret(&ret);
 
     // Initialize each port.
-    cret = dpdkc_ports_queues_init(cmd.promisc, 1, 1);
+    ret = dpdkc_ports_queues_init(cmd.promisc, 1, 1);
 
     // Check for error and fail with it if there is.
-    dpdkc_check_error(&cret);
+    dpdkc_check_ret(&ret);
 
     // Check for available ports.
-    if (!dpdkc_ports_available())
-    {
-        rte_exit(EXIT_FAILURE, "No available ports found. Please set port mask.\n");
-    }
+    ret = dpdkc_ports_available();
+
+    dpdkc_check_ret(&ret);
 
     // Check port link status for all ports.
     dpdkc_check_link_status();
@@ -184,16 +183,14 @@ int main(int argc, char **argv)
     dpdkc_launch_and_run(launch_lcore);
 
     // Stop all ports.
-    if ((ret = dpdkc_port_stop_and_remove()) != 0)
-    {
-        rte_exit(EXIT_FAILURE, "Failed to stop ports. Error => %s (%d).\n", strerror(-ret), ret);
-    }
+    ret = dpdkc_port_stop_and_remove();
+
+    dpdkc_check_ret(&ret);
 
     // Cleanup EAL.
-    if ((ret = dpdkc_eal_cleanup()) != 0)
-    {
-        rte_exit(EXIT_FAILURE, "Failed to cleanup EAL. Error => %s (%d).\n", strerror(-ret), ret);
-    }
+    ret = dpdkc_eal_cleanup();
+
+    dpdkc_check_ret(&ret);
 
     return 0;
 }
