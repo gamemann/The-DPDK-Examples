@@ -20,7 +20,7 @@ static void forwardpacket(struct rte_mbuf *pckt, unsigned portid)
     unsigned dst_port;
     struct rte_eth_dev_tx_buffer *buffer;
 
-    dst_port = dstports[portid];
+    dst_port = dst_ports[portid];
     buffer = tx_buffer[dst_port];
     
     rte_eth_tx_buffer(dst_port, 0, buffer, pckt);
@@ -63,7 +63,7 @@ static void pcktloop(void)
         {
             for (i = 0; i < qconf->numrxport; i++)
             {
-                portid = dstports[qconf->rxportlist[i]];
+                portid = dst_ports[qconf->rxportlist[i]];
                 buffer = tx_buffer[portid];
 
                 rte_eth_tx_buffer_flush(portid, 0, buffer);
@@ -88,342 +88,112 @@ static void pcktloop(void)
     }
 }
 
-static int launchlcore(__rte_unused void *tmp)
+static int launch_lcore(__rte_unused void *tmp)
 {
     pcktloop();
 }
 
-static void signhdl(int tmp)
+static void sign_hdl(int tmp)
 {
     quit = 1;
 }
 
 int main(int argc, char **argv)
 {
-    struct lcore_queue_conf *qconf;
-    int ret;
-    __u16 nbports;
-    __u16 nbportsavailable = 0;
-    __u16 portid, lastport;
-    unsigned int lcoreid, rxlcoreid;
-    unsigned nbportsinmask = 0;
-    unsigned int nblcores = 0;
-    unsigned int nbmbufs;
-
-    // Initialize.
-    ret = rte_eal_init(argc, argv);
-
-    if (ret < 0)
+    // Initialiize result variables.
+    int ret = -1;
+    struct dpdkc_error cret =
     {
-        rte_exit(EXIT_FAILURE, "Invalid EAL arguments.\n");
+        .err_num = 0,
+        .gen_msg = NULL,
+        .port_id = -1,
+        .rx_id = -1,
+        .tx_id = -1
+    };
+
+    if ((ret = dpdkc_eal_init(argc, argv)) < 0)
+    {
+        rte_exit(EXIT_FAILURE, "Failed to initialize EAL. Error => %s (%d).\n", strerror(-ret), ret);
     }
 
+    // Calculate difference in arguments due to EAL init.
     argc -= ret;
     argv += ret;
 
+    // Setup signal.
     quit = 0;
+    signal(SIGINT, sign_hdl);
+    signal(SIGTERM, sign_hdl);
 
-    signal(SIGINT, signhdl);
-    signal(SIGTERM, signhdl);
-
-    // Application-specify arguments.
+    // Parse application-specific arguments.
     struct cmdline cmd = {0};
     parsecmdline(&cmd, argc, argv);
 
     // Retrieve the amount of ethernet ports and check.
-    nbports = rte_eth_dev_count_avail();
-
-    if (nbports == 0)
+    if ((nb_ports = dpdkc_get_nb_ports()) == 0)
     {
         rte_exit(EXIT_FAILURE, "No ethernet ports available.\n");
     }
 
     // Check port pairs.
-    if (port_pair_params != NULL)
+    if ((ret = dpdkc_check_port_pairs()) < 0)
     {
-        if (check_port_pair_config() < 0)
-        {
-            rte_exit(EXIT_FAILURE, "Port map config is invalid.\n");
-        }
+        rte_exit(EXIT_FAILURE, "Port pairs are invalid.\n");
     }
 
     // Make sure port mask is valid.
-    if (enabled_portmask & ~((1 << nbports) - 1))
+    if ((ret = dpdkc_ports_are_valid()) < 0)
     {
-        rte_exit(EXIT_FAILURE, "Invalid port mask. Try 0x%x.\n", (1 << nbports) - 1);
+        rte_exit(EXIT_FAILURE, "Invalid port mask. Try 0x%x.\n", (1 << nb_ports) - 1);
     }
 
     // Reset destination ports.
-    for (portid = 0; portid < RTE_MAX_ETHPORTS; portid++)
-    {
-        dstports[portid] = 0;
-    }
-
-    lastport = 0;
+    dpdkc_reset_dst_ports();
 
     // Populate our destination ports.
-    if (port_pair_params != NULL)
-    {
-        __u16 index, p;
-
-        for (index = 0; index < (nb_port_pair_params << 1); index++)
-        {
-            p = index & 1;
-            portid = port_pair_params[index >> 1].port[p];
-            dstports[portid] = port_pair_params[index >> 1].port[p ^ 1];
-        }
-    }
-    else
-    {
-        RTE_ETH_FOREACH_DEV(portid)
-        {
-            if ((enabled_portmask & (1 << portid)) == 0)
-            {
-                continue;
-            }
-
-            if (nbportsinmask % 2)
-            {
-                dstports[portid] = lastport;
-                dstports[lastport] = portid;
-            }
-            else
-            {
-                lastport = portid;
-            }
-
-            nbportsinmask++;
-        }
-
-        if (nbportsinmask % 2)
-        {
-            fprintf(stdout, "WARNING - Odd number of ports in port mask.\n");
-            dstports[lastport] = lastport;
-        }
-    }
-
-    rxlcoreid = 0;
-    qconf = NULL;
+    dpdkc_populate_dst_ports();
 
     // Initialize the port and queue combination for each l-core.
-    RTE_ETH_FOREACH_DEV(portid)
+    if ((ret = dpdkc_ports_queues_mapping()) < 0)
     {
-        // Skip any ports not available.
-        if ((enabled_portmask & (1 << portid)) == 0)
-        {
-            continue;
-        }
-
-        // Retrieve the l-core ID.
-        while (rte_lcore_is_enabled(rxlcoreid) == 0 || lcore_queue_conf[rxlcoreid].numrxport == rxqueuepl)
-        {
-            rxlcoreid++;
-
-            if (rxlcoreid >= RTE_MAX_LCORE)
-            {
-                rte_exit(EXIT_FAILURE, "Not enough cores to support the amount of RX queues/ports.\n");
-            }
-        }
-
-        if (qconf != &lcore_queue_conf[rxlcoreid])
-        {
-            qconf = &lcore_queue_conf[rxlcoreid];
-            nblcores++;
-        }
-
-        qconf->rxportlist[qconf->numrxport] = portid;
-        qconf->numrxport++;
-
-        fprintf(stdout, "Setting up l-core #%u with RX port %u and TX port %u.\n", rxlcoreid, portid, dstports[portid]);
+        rte_exit(EXIT_FAILURE, "Not enough cores to support l-cores.\n");
     }
 
     // Determine number of mbufs to have.
-    nbmbufs = RTE_MAX(nbports * (nb_rxd + nb_txd + nblcores & MEMPOOL_CACHE_SIZE), 8192U);
-
-    // Create mbuf pool.
-    pcktmbuf_pool = rte_pktmbuf_pool_create("pckt_pool", nbmbufs, MEMPOOL_CACHE_SIZE, 0, RTE_MBUF_DEFAULT_BUF_SIZE, rte_socket_id());
-
-    if (pcktmbuf_pool == NULL)
+    if ((ret = dpdkc_create_mbuf()) < 0)
     {
-        rte_exit(EXIT_FAILURE, "Failure to create mbuf pool.\n");
+        rte_exit(EXIT_FAILURE, "Failed to allocate packet's mbuf. Error => %s (%d).\n", strerror(-ret), ret);
     }
 
     // Initialize each port.
-    RTE_ETH_FOREACH_DEV(portid)
-    {
-        // Initialize queue/port conifgs and device info.
-        struct rte_eth_rxconf rxqconf;
-        struct rte_eth_txconf txqconf;
-        struct rte_eth_conf localportconf = port_conf;
-        struct rte_eth_dev_info devinfo;
+    cret = dpdkc_ports_queues_init(cmd.promisc, 1, 1);
 
-        // Skip any ports not available.
-        if ((enabled_portmask & (1 << portid)) == 0)
-        {
-            fprintf(stdout, "Skipping port #%u initialize due to it being disabled.\n", portid);
-            
-            continue;
-        }
-
-        nbportsavailable++;
-
-        // Initialize the port itself.
-        fprintf(stdout, "Initializing port #%u...\n", portid);
-        fflush(stdout);
-
-        // Attempt to receive device information for this specific port and check.
-        ret = rte_eth_dev_info_get(portid, &devinfo);
-
-        if (ret != 0)
-        {
-            rte_exit(EXIT_FAILURE, "Error getting device information on port ID %u. Error => %s.\n", portid, strerror(-ret));
-        }
-
-        // Check for TX mbuf fast free support on this specific device.
-        if (devinfo.tx_offload_capa & RTE_ETH_TX_OFFLOAD_MBUF_FAST_FREE)
-        {
-            localportconf.txmode.offloads |= RTE_ETH_TX_OFFLOAD_MBUF_FAST_FREE;
-        }
-
-        // Configure the queue for this port (we only initialize one RX and TX queue per port).
-        ret = rte_eth_dev_configure(portid, 1, 1, &localportconf);
-
-        if (ret < 0)
-        {
-            rte_exit(EXIT_FAILURE, "Cannot configure device for port #%u. Error => %s (%d).\n", portid, strerror(-ret), ret);
-        }
-
-        // Retrieve MAC address of device and store in array.
-        ret = rte_eth_macaddr_get(portid, &portseth[portid]);
-
-        if (ret < 0)
-        {
-            rte_exit(EXIT_FAILURE, "Failed to retrieve MAC address for port #%u. Error => %s (%d).\n", portid, strerror(-ret), ret);
-        }
-
-        // Initialize the RX queue.
-        fflush(stdout);
-        rxqconf = devinfo.default_rxconf;
-        rxqconf.offloads = localportconf.rxmode.offloads;
-
-        // Setup the RX queue and check.
-        ret = rte_eth_rx_queue_setup(portid, 0, nb_rxd, rte_eth_dev_socket_id(portid), &rxqconf, pcktmbuf_pool);
-
-        if (ret < 0)
-        {
-            rte_exit(EXIT_FAILURE, "Failed to setup RX queue for port #%u. Error => %s (%d).\n", portid, strerror(-ret), ret);
-        }
-
-        // Initialize the TX queue.
-        fflush(stdout);
-        txqconf = devinfo.default_txconf;
-        txqconf.offloads = localportconf.txmode.offloads;
-
-        // Setup the TX queue and check.
-        ret = rte_eth_tx_queue_setup(portid, 0, nb_txd, rte_eth_dev_socket_id(portid), &txqconf);
-
-        if (ret < 0)
-        {
-            rte_exit(EXIT_FAILURE, "Failed to setup TX queue for port #%u. Error => %s (%d).\n", portid, strerror(-ret), ret);
-        }
-
-        // Initialize TX buffers.
-        tx_buffer[portid] = rte_zmalloc_socket("tx_buffer", RTE_ETH_TX_BUFFER_SIZE(MAX_PCKT_BURST), 0, rte_eth_dev_socket_id(portid));
-
-        if (tx_buffer[portid] == NULL)
-        {
-            rte_exit(EXIT_FAILURE, "Failed to allocate TX buffer for port #%u.\n", portid);
-        }
-
-        rte_eth_tx_buffer_init(tx_buffer[portid], MAX_PCKT_BURST);
-
-        ret = rte_eth_tx_buffer_set_err_callback(tx_buffer[portid], rte_eth_tx_buffer_count_callback, NULL);
-
-        if (ret < 0)
-        {
-            rte_exit(EXIT_FAILURE, "Failed to set callback for TX buffer on port #%u.\n", portid);
-        }
-
-        // We'll want to disable ptype parsing.
-        ret = rte_eth_dev_set_ptypes(portid, RTE_PTYPE_UNKNOWN, NULL, 0);
-
-        if (ret < 0)
-        {
-            rte_exit(EXIT_FAILURE, "Failed to disable PType parsing for port #%u.\n", portid);
-        }
-
-        // Start the device itself.
-        ret = rte_eth_dev_start(portid);
-
-        if (ret < 0)
-        {
-            rte_exit(EXIT_FAILURE, "Failed to start Ethernet device for port #%u.\n", portid);
-        }
-
-        // Check for promiscuous mode.
-        if (cmd.promisc)
-        {
-            ret = rte_eth_promiscuous_enable(portid);
-
-            if (ret < 0)
-            {
-                rte_exit(EXIT_FAILURE, "Failed to enable promiscuous mode for port #%u. Error => %s (%d).\n", portid, strerror(-ret), ret);
-            }
-        }
-
-        fprintf(stdout, "Port #%u setup successfully. MAC Address => " RTE_ETHER_ADDR_PRT_FMT ".\n", portid, RTE_ETHER_ADDR_BYTES(&portseth[portid]));
-    }
+    // Check for error and fail with it if there is.
+    dpdkc_check_error(&cret);
 
     // Check for available ports.
-    if (!nbportsavailable)
+    if (!dpdkc_ports_available())
     {
         rte_exit(EXIT_FAILURE, "No available ports found. Please set port mask.\n");
     }
 
     // Check port link status for all ports.
-    check_all_ports_link_status(enabled_portmask);
-
-    ret = 0;
-
+    dpdkc_check_link_status();
 
     // Launch the application on each l-core.
-    rte_eal_mp_remote_launch(launchlcore, NULL, CALL_MAIN);
-
-    RTE_LCORE_FOREACH_WORKER(lcoreid)
-    {
-        if (rte_eal_wait_lcore(lcoreid) < 0)
-        {
-            ret = -1;
-
-            break;
-        }
-    }
+    dpdkc_launch_and_run(launch_lcore);
 
     // Stop all ports.
-    RTE_ETH_FOREACH_DEV(portid)
+    if ((ret = dpdkc_port_stop_and_remove()) != 0)
     {
-        // Skip disabled ports.
-        if ((enabled_portmask & (1 << portid)) == 0)
-        {
-            continue;
-        }
-
-        fprintf(stdout, "Closing port #%u.\n", portid);
-
-        // Stop the port and check.
-        ret = rte_eth_dev_stop(portid);
-
-        if (ret != 0)
-        {
-            fprintf(stderr, "Failed to close port #%u. Error => %s (%d).\n", portid, strerror(-ret), ret);
-        }
-
-        // Finally, close the port.
-        rte_eth_dev_close(portid);
+        rte_exit(EXIT_FAILURE, "Failed to stop ports. Error => %s (%d).\n", strerror(-ret), ret);
     }
 
     // Cleanup EAL.
-    rte_eal_cleanup();
+    if ((ret = dpdkc_eal_cleanup()) != 0)
+    {
+        rte_exit(EXIT_FAILURE, "Failed to cleanup EAL. Error => %s (%d).\n", strerror(-ret), ret);
+    }
 
-    return ret;
+    return 0;
 }

@@ -8,6 +8,14 @@
 int parsecmdline(struct cmdline *cmd, int argc, char **argv)
 {
     int c = -1, ret;
+    struct dpdkc_error cret =
+    {
+        .err_num = 0,
+        .gen_msg = NULL,
+        .port_id = -1,
+        .rx_id = -1,
+        .tx_id = -1
+    };
 
     static const struct option lopts[] =
     {
@@ -23,38 +31,29 @@ int parsecmdline(struct cmdline *cmd, int argc, char **argv)
         switch (c)
         {
             case 'p':
-                enabled_portmask = parse_portmask(optarg);
+                enabled_port_mask = dpdkc_parse_arg_port_mask(optarg);
 
-                if (enabled_portmask == 0)
+                if (enabled_port_mask == 0)
                 {
-                    fprintf(stderr, "Invalid portmask specified with -p or --portmask.\n");
-
-                    return -1;
+                    rte_exit(EXIT_FAILURE, "Invalid portmask specified with -p or --portmask.\n");
                 }
 
                 break;
 
             case 'P':
-                ret = parse_port_pair_config(optarg);
+                cret = dpdkc_parse_arg_port_pair_config(optarg);
 
-                if (ret)
-                {
-                    fprintf(stderr, "Invalid portmap config.\n");
-
-                    return -1;
-                }
+                dpdkc_check_error(&cret);
 
                 break;
 
             case 'q':
-                rxqueuepl = parse_queues(optarg);
-                cmd->queues = rxqueuepl;
+                rx_queue_pl = dpdkc_parse_arg_queues(optarg);
+                cmd->queues = rx_queue_pl;
 
-                if (rxqueuepl == 0)
+                if (rx_queue_pl == 0)
                 {
-                    fprintf(stderr, "Invalid queue number argument with -q or --queues.\n");
-
-                    return -1;
+                    rte_exit(EXIT_FAILURE, "Invalid queue number argument with -q or --queues.\n");
                 }
 
                 break;
