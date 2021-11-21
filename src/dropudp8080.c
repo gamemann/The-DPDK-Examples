@@ -40,6 +40,38 @@ static void swap_eth(struct rte_ether_hdr *eth)
 }
 
 /**
+ * Swaps the source and destination IP addresses.
+ * 
+ * @param iph A pointer to the IPv4 header (struct rte_ipv4_hdr).
+ * 
+ * @return Void
+**/
+static void swap_iph(struct rte_ipv4_hdr *iph)
+{
+    rte_be32_t tmp;
+    memcpy(&tmp, &iph->src_addr, sizeof(tmp));
+
+    memcpy(&iph->src_addr, &iph->dst_addr, sizeof(iph->src_addr));
+    memcpy(&iph->dst_addr, &tmp, sizeof(iph->dst_addr));
+}
+
+/**
+ * Swaps the source and destination UDP ports.
+ * 
+ * @param udph A pointer to the UDP header (struct rte_udp_hdr).
+ * 
+ * @return Void
+**/
+static void swap_udph(struct rte_udp_hdr *udph)
+{
+    rte_be16_t tmp;
+    memcpy(&tmp, &udph->src_port, sizeof(tmp));
+
+    memcpy(&udph->src_port, &udph->dst_port, sizeof(udph->src_port));
+    memcpy(&udph->dst_port, &tmp, sizeof(udph->dst_port));
+}
+
+/**
  * Inspects a packet and checks against UDP destination port 8080.
  * 
  * @param pckt A pointer to the rte_mbuf container the packet data.
@@ -82,6 +114,20 @@ static void inspect_pckt(struct rte_mbuf *pckt, unsigned portid)
 
     // Swap MAC addresses.
     swap_eth(eth);
+
+    // Swap IP addresses.
+    swap_iph(iph);
+
+    // Swap UDP ports.
+    swap_udph(udph);
+
+    // Recalculate IP header checksum.
+    iph->hdr_checksum = 0;
+    rte_ipv4_cksum(iph);
+
+    // Recalulate UDP header checksum.
+    udph->dgram_cksum = 0;
+    rte_ipv4_udptcp_cksum(iph, udph);
 
     // Otherwise, forward packet.
     unsigned dst_port;
