@@ -20,7 +20,8 @@
 #define htons(o) cpu_to_be16(o)
 #endif
 
-#define ETHTYPE_IPV4 0x0800
+#define ETH_P_IP 0x0800
+#define ETH_P_8021Q	0x8100
 #define PROTOCOL_UDP 0x11
 
 __u64 pcktsforwarded = 0;
@@ -87,17 +88,31 @@ static void inspect_pckt(struct rte_mbuf *pckt, unsigned portid)
     // Data points to the start of packet data within the mbuf.
     void *data = pckt->buf_addr + pckt->data_off;
 
+    // The offset.
+    unsigned int offset = 0;
+
     // Initialize ethernet header.
     struct rte_ether_hdr *eth = data;
 
-    // Make sure we're dealing with IPv4.
-    if (eth->ether_type != htons(ETHTYPE_IPV4))
+    offset += sizeof(struct rte_ether_hdr);
+
+    //printf("[IN_PRE] Src MAC => %x:%x:%x:%x:%x:%x. Dst MAC => %x:%x:%x:%x:%x:%x. Type => %d (%d).\n", eth->src_addr.addr_bytes[0], eth->src_addr.addr_bytes[1], eth->src_addr.addr_bytes[2], eth->src_addr.addr_bytes[3], eth->src_addr.addr_bytes[4], eth->src_addr.addr_bytes[5], eth->dst_addr.addr_bytes[0], eth->dst_addr.addr_bytes[1], eth->dst_addr.addr_bytes[2], eth->dst_addr.addr_bytes[3], eth->dst_addr.addr_bytes[4], eth->dst_addr.addr_bytes[5], htons(eth->ether_type), eth->ether_type);
+
+    // Make sure we're dealing with IPv4 or a VLAN.
+    if (eth->ether_type != htons(ETH_P_IP) && eth->ether_type != htons(ETH_P_8021Q))
     {
         return;
     }
 
+    // Handle VLAN.
+    if (eth->ether_type == htons(ETH_P_8021Q))
+    {
+        // VLAN header length is four bytes, so increase offset by that amount.
+        offset += 4;
+    }
+
     // Initialize IPv4 header.
-    struct rte_ipv4_hdr *iph = data + sizeof(struct rte_ether_hdr);
+    struct rte_ipv4_hdr *iph = data + offset;
 
     // Check to make sure we're dealing with UDP.
     if (iph->next_proto_id != PROTOCOL_UDP)
@@ -105,8 +120,13 @@ static void inspect_pckt(struct rte_mbuf *pckt, unsigned portid)
         return;
     }
 
+    // Increase offset by length of IPv4 header.
+    offset += (iph->ihl * 4);
+
     // Initialize UDP header.
-    struct rte_udp_hdr *udph = data + sizeof(struct rte_ether_hdr) + (iph->ihl * 4);
+    struct rte_udp_hdr *udph = data + offset;
+
+    printf("Found UDP packet on port %d!\n", htons(udph->dst_port));
 
     // Check destination port.
     if (udph->dst_port == htons(8080))
@@ -117,6 +137,8 @@ static void inspect_pckt(struct rte_mbuf *pckt, unsigned portid)
         // Drop packet.
         return;
     }
+
+    //printf("[IN] Src MAC => %x:%x:%x:%x:%x:%x. Dst MAC => %x:%x:%x:%x:%x:%x. Source IP => %u. Dest IP => %u. Source port => %d. Dest port => %d.\n", eth->src_addr.addr_bytes[0], eth->src_addr.addr_bytes[1], eth->src_addr.addr_bytes[2], eth->src_addr.addr_bytes[3], eth->src_addr.addr_bytes[4], eth->src_addr.addr_bytes[5], eth->dst_addr.addr_bytes[0], eth->dst_addr.addr_bytes[1], eth->dst_addr.addr_bytes[2], eth->dst_addr.addr_bytes[3], eth->dst_addr.addr_bytes[4], eth->dst_addr.addr_bytes[5], iph->src_addr, iph->dst_addr, htons(udph->src_port), htons(udph->dst_port));
 
     // Swap MAC addresses.
     swap_eth(eth);
@@ -134,6 +156,8 @@ static void inspect_pckt(struct rte_mbuf *pckt, unsigned portid)
     // Recalulate UDP header checksum.
     udph->dgram_cksum = 0;
     rte_ipv4_udptcp_cksum(iph, udph);
+
+    //printf("[OUT] Src MAC => %x:%x:%x:%x:%x:%x. Dst MAC => %x:%x:%x:%x:%x:%x. Source IP => %u. Dest IP => %u. Source port => %d. Dest port => %d.\n", eth->src_addr.addr_bytes[0], eth->src_addr.addr_bytes[1], eth->src_addr.addr_bytes[2], eth->src_addr.addr_bytes[3], eth->src_addr.addr_bytes[4], eth->src_addr.addr_bytes[5], eth->dst_addr.addr_bytes[0], eth->dst_addr.addr_bytes[1], eth->dst_addr.addr_bytes[2], eth->dst_addr.addr_bytes[3], eth->dst_addr.addr_bytes[4], eth->dst_addr.addr_bytes[5], iph->src_addr, iph->dst_addr, htons(udph->src_port), htons(udph->dst_port));
 
     // Otherwise, forward packet.
     unsigned dst_port;
@@ -374,7 +398,7 @@ int main(int argc, char **argv)
 
     dpdkc_check_ret(&ret);
 
-    printf("Packets forwarded => %llu. Packets dropped => %llu.", pcktsforwarded, pcktsdropped);
+    printf("Packets forwarded => %llu. Packets dropped => %llu.\n\n", pcktsforwarded, pcktsdropped);
 
     return 0;
 }
