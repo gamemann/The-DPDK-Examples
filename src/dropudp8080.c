@@ -23,7 +23,7 @@
 #define ETHTYPE_IPV4 0x0800
 #define PROTOCOL_UDP 0x11
 
-__u64 pcktspassed = 0;
+__u64 pcktsforwarded = 0;
 __u64 pcktsdropped = 0;
 
 /**
@@ -111,6 +111,7 @@ static void inspect_pckt(struct rte_mbuf *pckt, unsigned portid)
     // Check destination port.
     if (udph->dst_port == htons(8080))
     {
+        // Increment packets dropped count.
         pcktsdropped++;
 
         // Drop packet.
@@ -144,7 +145,8 @@ static void inspect_pckt(struct rte_mbuf *pckt, unsigned portid)
     
     rte_eth_tx_buffer(dst_port, 0, buffer, pckt);
 
-    pcktspassed++;
+    // Increment packets TX count.
+    pcktsforwarded++;
 }
 
 /**
@@ -371,6 +373,8 @@ int main(int argc, char **argv)
     ret = dpdkc_eal_cleanup();
 
     dpdkc_check_ret(&ret);
+
+    printf("Packets forwarded => %llu. Packets dropped => %llu.", pcktsforwarded, pcktsdropped);
 
     return 0;
 }
