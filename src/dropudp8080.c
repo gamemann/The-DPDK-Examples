@@ -26,8 +26,8 @@
 #define ETH_P_8021Q	0x8100
 #define PROTOCOL_UDP 0x11
 
-__u64 pcktsforwarded = 0;
-__u64 pcktsdropped = 0;
+__u64 pckts_forwarded = 0;
+__u64 pckts_dropped = 0;
 
 /**
  * Swaps the source and destination ethernet MAC addresses.
@@ -132,7 +132,7 @@ static void inspect_pckt(struct rte_mbuf *pckt, unsigned portid)
     if (udph->dst_port == htons(8080))
     {
         // Increment packets dropped count.
-        pcktsdropped++;
+        pckts_dropped++;
 
         // Drop packet.
         return;
@@ -170,7 +170,7 @@ static void inspect_pckt(struct rte_mbuf *pckt, unsigned portid)
     rte_eth_tx_buffer(dst_port, 0, buffer, pckt);
 
     // Increment packets TX count.
-    pcktsforwarded++;
+    pckts_forwarded++;
 }
 
 /**
@@ -313,12 +313,24 @@ static void sign_hdl(int tmp)
 **/
 void *hndl_stats(void *tmp)
 {
+    // Last updated variables.
+    __u64 last_fwd = 0;
+    __u64 last_drop = 0;
+
     // Run until program exits.
     while (!quit)
     {
+        // Retrieve current PPS.
+        __u64 fwd_pps = pckts_forwarded - last_fwd;
+        __u64 drop_pps = pckts_dropped - last_drop;
+
         // Flush stdout and print stats.
         fflush(stdout);
-        printf("\rForwarded => %llu. Dropped => %llu.", pcktsforwarded, pcktsdropped);
+        printf("\rForwarded PPS => %llu. Dropped PPS => %llu.", fwd_pps, drop_pps);
+
+        // Update last variables.
+        last_fwd = pckts_forwarded;
+        last_drop = pckts_dropped;
 
         // Sleep for a second to avoid unnecessary CPU cycles.
         sleep(1);
@@ -427,7 +439,7 @@ int main(int argc, char **argv)
 
     dpdkc_check_ret(&ret);
 
-    printf("Total Packets Forwarded => %llu.\nTotal Packets Dropped => %llu.\n\n", pcktsforwarded, pcktsdropped);
+    printf("Total Packets Forwarded => %llu.\nTotal Packets Dropped => %llu.\n\n", pckts_forwarded, pckts_dropped);
 
     return 0;
 }
