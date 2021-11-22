@@ -23,6 +23,9 @@
 #define ETHTYPE_IPV4 0x0800
 #define PROTOCOL_UDP 0x11
 
+__u64 pcktspassed = 0;
+__u64 pcktsdropped = 0;
+
 /**
  * Swaps the source and destination ethernet MAC addresses.
  * 
@@ -108,6 +111,8 @@ static void inspect_pckt(struct rte_mbuf *pckt, unsigned portid)
     // Check destination port.
     if (udph->dst_port == htons(8080))
     {
+        pcktsdropped++;
+
         // Drop packet.
         return;
     }
@@ -138,6 +143,8 @@ static void inspect_pckt(struct rte_mbuf *pckt, unsigned portid)
     buffer = tx_buffer[dst_port];
     
     rte_eth_tx_buffer(dst_port, 0, buffer, pckt);
+
+    pcktspassed++;
 }
 
 /**
