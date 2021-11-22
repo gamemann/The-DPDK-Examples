@@ -326,7 +326,7 @@ void *hndl_stats(void *tmp)
 
         // Flush stdout and print stats.
         fflush(stdout);
-        printf("\rForwarded PPS => %llu. Dropped PPS => %llu.", fwd_pps, drop_pps);
+        printf("\rForward => %llu. Drop => %llu.", fwd_pps, drop_pps);
 
         // Update last variables.
         last_fwd = pckts_forwarded;
