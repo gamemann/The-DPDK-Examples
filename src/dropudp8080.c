@@ -103,6 +103,8 @@ static void inspect_pckt(struct rte_mbuf *pckt, unsigned portid)
     // Make sure we're dealing with IPv4 or a VLAN.
     if (eth->ether_type != htons(ETH_P_IP) && eth->ether_type != htons(ETH_P_8021Q))
     {
+        rte_pktmbuf_free(pckt);
+
         return;
     }
 
@@ -119,6 +121,8 @@ static void inspect_pckt(struct rte_mbuf *pckt, unsigned portid)
     // Check to make sure we're dealing with UDP.
     if (iph->next_proto_id != PROTOCOL_UDP)
     {
+        rte_pktmbuf_free(pckt);
+
         return;
     }
 
@@ -131,6 +135,8 @@ static void inspect_pckt(struct rte_mbuf *pckt, unsigned portid)
     // Check destination port.
     if (udph->dst_port == htons(8080))
     {
+        rte_pktmbuf_free(pckt);
+
         // Increment packets dropped count.
         pckts_dropped++;
 
