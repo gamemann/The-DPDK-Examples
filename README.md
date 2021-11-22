@@ -45,5 +45,33 @@ make
 
 Executables will be built inside of the `build/` directory by default.
 
+## EAL Parameters
+All DPDK applications in this repository supports DPDK's EAL paramters. These may be found [here](http://doc.dpdk.org/guides/linux_gsg/linux_eal_parameters.html).
+
+This is useful for specifying the amount of l-cores and ports to configure for example.
+
+## Examples
+### Drop UDP Port 8080 (Tested And Working)
+In this DPDK application, any packets arriving on UDP destination port 8080 will be dropped. Otherwise, if the packet's ethernet header type is IPv4 or VLAN, it will swap the source/destination MAC and IP addresses along with the UDP source/destination ports then send the packet out the TX path (basically forwarding the packet from where it came).
+
+In additional to EAL parameters, the following is available specifically for this application.
+
+```
+-p --portmask => The port mask to configure (e.g. 0xFFFF).
+-P --portmap => The port map to configure (in '(x, y),(b,z)' format).
+-q --queues => The amount of RX and TX queues to setup per port (default and recommended value is 1).
+-x --promisc => Whether to enable promiscuous on all enabled ports.
+-s --stats => If specified, will print real-time packet counter stats to stdout.
+```
+
+Here's an example:
+
+```
+./dropudp8080 -l 0-1 -n 1 -- -q 1 -p 0xff -s
+```
+
+### Simple Forwarding Program
+*Not created yet.*
+
 ## Credits
 * [Christian Deacon](https://github.com/gamemann)
