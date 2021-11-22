@@ -8,15 +8,7 @@
 int parsecmdline(struct cmdline *cmd, int argc, char **argv)
 {
     int c = -1;
-    struct dpdkc_ret ret =
-    {
-        .err_num = 0,
-        .gen_msg = NULL,
-        .port_id = -1,
-        .rx_id = -1,
-        .tx_id = -1,
-        .data = NULL
-    };
+    struct dpdkc_ret ret = dpdkc_ret_init();
 
     static const struct option lopts[] =
     {
@@ -34,7 +26,7 @@ int parsecmdline(struct cmdline *cmd, int argc, char **argv)
             case 'p':
                 ret = dpdkc_parse_arg_port_mask(optarg);
 
-                enabled_port_mask = *((unsigned int *)ret.data);
+                enabled_port_mask = (unsigned int)ret.data;
 
                 if (enabled_port_mask == 0)
                 {
@@ -53,7 +45,7 @@ int parsecmdline(struct cmdline *cmd, int argc, char **argv)
             case 'q':
                 ret = dpdkc_parse_arg_queues(optarg);
 
-                rx_queue_pl = *((unsigned short *)ret.data);
+                rx_queue_pl = (unsigned short)ret.data;
                 
                 if (rx_queue_pl == 0)
                 {

@@ -282,15 +282,7 @@ static void sign_hdl(int tmp)
 int main(int argc, char **argv)
 {
     // Initialiize result variables.
-    struct dpdkc_ret ret =
-    {
-        .err_num = 0,
-        .gen_msg = NULL,
-        .port_id = -1,
-        .rx_id = -1,
-        .tx_id = -1,
-        .data = NULL
-    };
+    struct dpdkc_ret ret = dpdkc_ret_init();
 
     // Initialize EAL and check.
     ret = dpdkc_eal_init(argc, argv);
@@ -298,7 +290,7 @@ int main(int argc, char **argv)
     dpdkc_check_ret(&ret);
 
     // Retrieve number of arguments to adjust.
-    int arg_adj = *((int *)ret.data);
+    int arg_adj = (int)ret.data;
 
     // Calculate difference in arguments due to EAL init.
     argc -= arg_adj;
@@ -318,7 +310,7 @@ int main(int argc, char **argv)
 
     dpdkc_check_ret(&ret);
 
-    nb_ports = *((unsigned short *)ret.data);
+    nb_ports = (unsigned short)ret.data;
 
     // Check port pairs.
     ret = dpdkc_check_port_pairs();
