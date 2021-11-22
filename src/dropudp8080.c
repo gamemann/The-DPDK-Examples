@@ -85,7 +85,7 @@ static void swap_udph(struct rte_udp_hdr *udph)
 static void inspect_pckt(struct rte_mbuf *pckt, unsigned portid)
 {
     // Data points to the start of packet data within the mbuf.
-    void *data = pckt->buf_addr;
+    void *data = pckt->buf_addr + pckt->data_off;
 
     // Initialize ethernet header.
     struct rte_ether_hdr *eth = data;
