@@ -1,5 +1,3 @@
-
-APP = simple_l2fwd
 BUILDDIR=build
 COMMONDIR=The-DPDK-Common
 SRCDIR=src
@@ -12,8 +10,11 @@ CMDLINESRC=cmdline.c
 
 OBJS=$(COMMONOBJ) $(BUILDDIR)/$(CMDLINEOBJ)
 
-SIMPLE_L2FWD := $(SRCDIR)/simple_l2fwd.c
-DROPUDP8080 := $(SRCDIR)/dropudp8080.c
+SIMPLEL2FWDSRC := simple_l2fwd.c
+SIMPLEL2FWDOUT := simple_l2fwd
+
+DROPUDP8080SRC := dropudp8080.c
+DROPUDP8080OUT := dropudp8080
 
 PKGCONF ?= pkg-config
 
@@ -21,13 +22,6 @@ PKGCONF ?= pkg-config
 ifneq ($(shell $(PKGCONF) --exists libdpdk && echo 0),0)
 $(error "no installation of DPDK found")
 endif
-
-all: shared
-.PHONY: shared static
-shared: $(BUILDDIR)/$(APP)-shared
-	ln -sf $(APP)-shared $(BUILDDIR)/$(APP)
-static: $(BUILDDIR)/$(APP)-static
-	ln -sf $(APP)-static $(BUILDDIR)/$(APP)
 
 PC_FILE := $(shell $(PKGCONF) --path libdpdk 2>/dev/null)
 CFLAGS += -O3 $(shell $(PKGCONF) --cflags libdpdk)
@@ -44,20 +38,21 @@ $(error "Cannot generate statically-linked binaries with this version of pkg-con
 endif
 endif
 
+all: main
 build:
-	@mkdir -p $@
+	@mkdir -p $(BUILDDIR)
 commonbuild:
 	$(MAKE) -C $(COMMONDIR)
 cmdlinebuild: Makefile $(PC_FILE) | build
 	$(CC) -I $(COMMONDIR)/$(SRCDIR) -c $(CFLAGS) -o $(BUILDDIR)/$(CMDLINEOBJ) $(LDFLAGS) $(LDFLAGS_SHARED) $(SRCDIR)/$(CMDLINESRC)
-$(BUILDDIR)/$(APP)-shared: commonbuild cmdlinebuild $(OBJS) $(SIMPLE_L2FWD) $(DROPUDP8080) Makefile $(PC_FILE) | build
-	$(CC) -I $(COMMONDIR)/$(SRCDIR) $(CFLAGS) $(SIMPLE_L2FWD) -o $@ $(LDFLAGS) $(OBJS) $(LDFLAGS_SHARED)
-	$(CC) -I $(COMMONDIR)/$(SRCDIR) $(CFLAGS) $(DROPUDP8080) -o $@ $(LDFLAGS) $(OBJS) $(LDFLAGS_SHARED)
-$(BUILDDIR)/$(APP)-static: commonbuild cmdlinebuild $(OBJS) $(SIMPLE_L2FWD) $(DROPUDP8080) Makefile $(PC_FILE) | build
-	$(CC) -I $(COMMONDIR)/$(SRCDIR) $(CFLAGS) $(SIMPLE_L2FWD) -o $@ $(LDFLAGS) $(OBJS) $(LDFLAGS_STATIC)
-	$(CC) -I $(COMMONDIR)/$(SRCDIR) $(CFLAGS) $(DROPUDP8080) -o $@ $(LDFLAGS) $(OBJS) $(LDFLAGS_STATIC)
-.PHONY: clean
+main: commonbuild cmdlinebuild $(OBJS) $(SIMPLE_L2FWD) $(DROPUDP8080) Makefile $(PC_FILE) | build
+	$(CC) -I $(COMMONDIR)/$(SRCDIR) $(CFLAGS) $(SRCDIR)/$(SIMPLEL2FWDSRC) -o $(BUILDDIR)/$(SIMPLEL2FWDOUT) $(LDFLAGS) $(OBJS) $(LDFLAGS_SHARED)
+	$(CC) -I $(COMMONDIR)/$(SRCDIR) $(CFLAGS) $(SRCDIR)/$(DROPUDP8080SRC) -o $(BUILDDIR)/$(DROPUDP8080OUT) $(LDFLAGS) $(OBJS) $(LDFLAGS_SHARED)
+install:
+	ln -s $(BUILDDIR)/$(SIMPLEL2FWDOUT) /usr/include/$(SIMPLEL2FWDOUT)
+	ln -s $(BUILDDIR)/$(DROPUDP8080OUT) /usr/include/$(DROPUDP8080OUT)
 clean:
-	rm -f $(BUILDDIR)/$(APP) $(BUILDDIR)/$(APP)-static $(BUILDDIR)/$(APP)-shared
+	rm -f $(BUILDDIR)/
 	$(MAKE) -C $(COMMONDIR) clean
 	test -d $(BUILDDIR) && rmdir -p $(BUILDDIR) || true
+.PHONY: main clean
