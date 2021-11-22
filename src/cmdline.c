@@ -16,10 +16,11 @@ int parsecmdline(struct cmdline *cmd, int argc, char **argv)
         {"portmap", required_argument, NULL, 'P'},
         {"queues", required_argument, NULL, 'q'},
         {"promisc", no_argument, NULL, 'x'},
+        {"stats", no_argument, NULL, 's'},
         {NULL, 0, NULL, 0}
     };
 
-    while ((c = getopt_long(argc, argv, "p:P:q:x", lopts, NULL)) != EOF)
+    while ((c = getopt_long(argc, argv, "p:P:q:xs", lopts, NULL)) != EOF)
     {
         switch (c)
         {
@@ -58,6 +59,11 @@ int parsecmdline(struct cmdline *cmd, int argc, char **argv)
 
             case 'x':
                 cmd->promisc = 1;
+
+                break;
+
+            case 's':
+                cmd->stats = 1;
 
                 break;
 

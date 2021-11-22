@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <string.h>
 #include <stdint.h>
 #include <linux/types.h>
@@ -8,6 +9,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <signal.h>
+#include <pthread.h>
 
 #include <dpdk_common.h>
 #include <rte_ip.h>
@@ -303,6 +305,27 @@ static void sign_hdl(int tmp)
 }
 
 /**
+ * The stats thread handler.
+ * 
+ * @param tmp An unused variable.
+ * 
+ * @return Void
+**/
+void *hndl_stats(void *tmp)
+{
+    // Run until program exits.
+    while (!quit)
+    {
+        // Flush stdout and print stats.
+        fflush(stdout);
+        printf("\rForwarded => %llu. Dropped => %llu.", pcktsforwarded, pcktsdropped);
+
+        // Sleep for a second to avoid unnecessary CPU cycles.
+        sleep(1);
+    }
+}
+
+/**
  * The main function call.
  * 
  * @param argc The amount of arguments.
@@ -383,6 +406,14 @@ int main(int argc, char **argv)
     // Check port link status for all ports.
     dpdkc_check_link_status();
 
+    // If stats is enabled, create a separate thread that flushes stdout and prints stats.
+    if (cmd.stats)
+    {
+        pthread_t pid;
+
+        pthread_create(&pid, NULL, hndl_stats, NULL);
+    }
+
     // Launch the application on each l-core.
     dpdkc_launch_and_run(launch_lcore);
 
@@ -396,7 +427,7 @@ int main(int argc, char **argv)
 
     dpdkc_check_ret(&ret);
 
-    printf("Packets forwarded => %llu. Packets dropped => %llu.\n\n", pcktsforwarded, pcktsdropped);
+    printf("Total Packets Forwarded => %llu.\nTotal Packets Dropped => %llu.\n\n", pcktsforwarded, pcktsdropped);
 
     return 0;
 }
