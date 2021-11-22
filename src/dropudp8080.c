@@ -126,8 +126,6 @@ static void inspect_pckt(struct rte_mbuf *pckt, unsigned portid)
     // Initialize UDP header.
     struct rte_udp_hdr *udph = data + offset;
 
-    printf("Found UDP packet on port %d!\n", htons(udph->dst_port));
-
     // Check destination port.
     if (udph->dst_port == htons(8080))
     {
