@@ -52,6 +52,6 @@ install:
 	ln -s $(BUILDDIR)/$(SIMPLEL2FWDOUT) /usr/include/$(SIMPLEL2FWDOUT)
 	ln -s $(BUILDDIR)/$(DROPUDP8080OUT) /usr/include/$(DROPUDP8080OUT)
 clean:
-	rm -f $(BUILDDIR)/
+	rm -f $(BUILDDIR)/*
 	$(MAKE) -C $(COMMONDIR) clean
 .PHONY: main clean
