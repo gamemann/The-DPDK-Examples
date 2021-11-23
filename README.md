@@ -70,8 +70,39 @@ Here's an example:
 ./dropudp8080 -l 0-1 -n 1 -- -q 1 -p 0xff -s
 ```
 
-### Simple Forwarding Program
-*Not created yet.*
+### Simple Layer 3 Forward (Tested And Working)
+In this DPDK application, a simple routing hash table is created with the key being the destination IP address and the value being the MAC address to forward to.
+
+Routes are read from the `/etc/l3fwd/routes.txt` file in the following format.
+
+```
+<ip address> <mac address in xx:xx:xx:xx:xx:xx>
+```
+
+The following is an example.
+
+```
+10.50.0.4 ae:21:14:4b:3a:6d
+10.50.0.5 d6:45:f3:b1:a4:3d
+```
+
+When a packet is processed, we ensure it is an IPv4 or VLAN packet (we offset the packet data by four bytes in this case so we can process the rest of the packet without issues). Afterwards, we perform a lookup with the destination IP being the key on the route hash table. If the lookup is successful, the source MAC address is replaced with the destination MAC address (packets will be going out the same port they arrive since we create a TX buffer and queue) and the destination MAC address is replaced with the MAC address the IP was assigned to from the routes file mentioned above.
+
+In additional to EAL parameters, the following is available specifically for this application.
+
+```
+-p --portmask => The port mask to configure (e.g. 0xFFFF).
+-P --portmap => The port map to configure (in '(x, y),(b,z)' format).
+-q --queues => The amount of RX and TX queues to setup per port (default and recommended value is 1).
+-x --promisc => Whether to enable promiscuous on all enabled ports.
+-s --stats => If specified, will print real-time packet counter stats to stdout.
+```
+
+Here's an example:
+
+```
+./simple_l3fwd -l 0-1 -n 1 -- -q 1 -p 0xff -s
+```
 
 ## Credits
 * [Christian Deacon](https://github.com/gamemann)
