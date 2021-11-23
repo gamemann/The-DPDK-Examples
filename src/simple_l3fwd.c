@@ -42,10 +42,10 @@ __u64 pckts_dropped = 0;
  * 
  * @return The amount of routes added or -1 on error.
 **/
-static unsigned int scan_route_table_and_add(const char *file, struct rte_hash *route_tbl)
+static int scan_route_table_and_add(const char *file, struct rte_hash *route_tbl)
 {
     // This represents the amount of routes we've added.
-    unsigned int routes = 0;
+    int routes = 0;
     int i = 0;
 
     FILE *fp = fopen(file, "r");
@@ -495,7 +495,7 @@ int main(int argc, char **argv)
     }
 
     // Now scan the route table and insert into the hash map.
-    unsigned int routes = scan_route_table_and_add("/etc/l3fwd/routes.txt", route_tbl);
+    int routes = scan_route_table_and_add("/etc/l3fwd/routes.txt", route_tbl);
 
     if (routes < 0)
     {
