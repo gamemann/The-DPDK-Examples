@@ -86,7 +86,7 @@ The following is an example.
 10.50.0.5 d6:45:f3:b1:a4:3d
 ```
 
-When a packet is processed, we ensure it is an IPv4 or VLAN packet (we offset the packet data by four bytes in this case so we can process the rest of the packet without issues). Afterwards, we perform a lookup with the destination IP being the key on the route hash table. If the lookup is successful, the source MAC address is replaced with the destination MAC address (packets will be going out the same port they arrive since we create a TX buffer and queue) and the destination MAC address is replaced with the MAC address the IP was assigned to from the routes file mentioned above.
+When a packet is processed, we ensure it is an IPv4 or VLAN packet (we offset the packet data by four bytes in this case so we can process the rest of the packet without issues). Afterwards, we perform a lookup with the destination IP being the key on the route hash table. If the lookup is successful, the source MAC address is replaced with the destination MAC address (packets will be going out the same port they arrive since we create a TX buffer and queue) and the destination MAC address is replaced with the MAC address the IP was assigned to from the routes file mentioned above. Otherwise, the packet is dropped and the packet dropped counter is incremented.
 
 In additional to EAL parameters, the following is available specifically for this application.
 
