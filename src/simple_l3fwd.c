@@ -495,7 +495,7 @@ int main(int argc, char **argv)
     }
 
     // Now scan the route table and insert into the hash map.
-    int routes = scan_route_table_and_add("/etc/l3fwd/routes.txt", route_tbl);
+    unsigned int routes = scan_route_table_and_add("/etc/l3fwd/routes.txt", route_tbl);
 
     if (routes < 0)
     {
