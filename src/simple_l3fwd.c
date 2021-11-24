@@ -29,7 +29,7 @@
 #define ETH_P_8021Q	0x8100
 #define PROTOCOL_UDP 0x11
 
-#define DEBUG
+//#define DEBUG
 
 __u64 pckts_forwarded = 0;
 __u64 pckts_dropped = 0;
