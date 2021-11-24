@@ -87,7 +87,7 @@ static void swap_udph(struct rte_udp_hdr *udph)
  * 
  * @return Void
 **/
-static void inspect_pckt(struct rte_mbuf *pckt, unsigned portid)
+static void inspect_pckt(struct rte_mbuf *pckt, unsigned port_id)
 {
     // Data points to the start of packet data within the mbuf.
     void *data = pckt->buf_addr + pckt->data_off;
@@ -174,7 +174,7 @@ static void inspect_pckt(struct rte_mbuf *pckt, unsigned portid)
     struct rte_eth_dev_tx_buffer *buffer;
 
     // Retrieve what port we're going out of and TX buffer to use.
-    dst_port = dst_ports[portid];
+    dst_port = dst_ports[port_id];
     buffer = tx_buffer[dst_port];
     
     rte_eth_tx_buffer(dst_port, 0, buffer, pckt);
