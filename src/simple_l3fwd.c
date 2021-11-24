@@ -194,7 +194,7 @@ static void fwd_pckt(struct rte_mbuf *pckt, unsigned port_id, struct rte_hash *r
     }
 
     // Now copy the port we're going out from as the source MAC and the correct destination from the route lookup.
-    rte_ether_addr_copy(&eth->dst_addr, &eth->src_addr);
+    rte_ether_addr_copy(&ports_eth[port_id], &eth->src_addr);
     rte_ether_addr_copy(dmac, &eth->dst_addr);
 
 #ifdef DEBUG
