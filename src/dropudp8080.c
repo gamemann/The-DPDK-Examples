@@ -145,7 +145,7 @@ static void inspect_pckt(struct rte_mbuf *pckt, unsigned portid)
     }
 
 #ifdef DEBUG
-    printf("[IN] Src MAC => %hhx:%hhx:%hhx:%hhx:%hhx:%hhx. Dst MAC => %hhx:%hhx:%hhx:%hhx:%hhx:%hhx. Source IP => %u. Dest IP => %u. Source port => %d. Dest port => %d.\n", eth->src_addr.addr_bytes[0], eth->src_addr.addr_bytes[1], eth->src_addr.addr_bytes[2], eth->src_addr.addr_bytes[3], eth->src_addr.addr_bytes[4], eth->src_addr.addr_bytes[5], eth->dst_addr.addr_bytes[0], eth->dst_addr.addr_bytes[1], eth->dst_addr.addr_bytes[2], eth->dst_addr.addr_bytes[3], eth->dst_addr.addr_bytes[4], eth->dst_addr.addr_bytes[5], iph->src_addr, iph->dst_addr, htons(udph->src_port), htons(udph->dst_port));
+    printf("[IN] Src MAC => " RTE_ETHER_ADDR_PRT_FMT ". Dst MAC => " RTE_ETHER_ADDR_PRT_FMT ". Source IP => %u. Dest IP => %u. Source port => %d. Dest port => %d.\n", RTE_ETHER_ADDR_BYTES(&eth->src_addr), RTE_ETHER_ADDR_BYTES(&eth->dst_addr), iph->src_addr, iph->dst_addr, htons(udph->src_port), htons(udph->dst_port));
 #endif
 
     // Swap MAC addresses.
@@ -166,7 +166,7 @@ static void inspect_pckt(struct rte_mbuf *pckt, unsigned portid)
     rte_ipv4_udptcp_cksum(iph, udph);
 
 #ifdef DEBUG
-    printf("[OUT] Src MAC => %hhx:%hhx:%hhx:%hhx:%hhx:%hhx. Dst MAC => %hhx:%hhx:%hhx:%hhx:%hhx:%hhx. Source IP => %u. Dest IP => %u. Source port => %d. Dest port => %d.\n", eth->src_addr.addr_bytes[0], eth->src_addr.addr_bytes[1], eth->src_addr.addr_bytes[2], eth->src_addr.addr_bytes[3], eth->src_addr.addr_bytes[4], eth->src_addr.addr_bytes[5], eth->dst_addr.addr_bytes[0], eth->dst_addr.addr_bytes[1], eth->dst_addr.addr_bytes[2], eth->dst_addr.addr_bytes[3], eth->dst_addr.addr_bytes[4], eth->dst_addr.addr_bytes[5], iph->src_addr, iph->dst_addr, htons(udph->src_port), htons(udph->dst_port));
+    printf("[OUT] Src MAC => " RTE_ETHER_ADDR_PRT_FMT ". Dst MAC => " RTE_ETHER_ADDR_PRT_FMT ". Source IP => %u. Dest IP => %u. Source port => %d. Dest port => %d.\n", RTE_ETHER_ADDR_BYTES(&eth->src_addr), RTE_ETHER_ADDR_BYTES(&eth->dst_addr), iph->src_addr, iph->dst_addr, htons(udph->src_port), htons(udph->dst_port));
 #endif
 
     // Otherwise, forward packet.
