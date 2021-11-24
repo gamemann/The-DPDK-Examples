@@ -29,7 +29,7 @@
 #define ETH_P_8021Q	0x8100
 #define PROTOCOL_UDP 0x11
 
-//#define DEBUG
+#define DEBUG
 
 __u64 pckts_forwarded = 0;
 __u64 pckts_dropped = 0;
@@ -198,7 +198,7 @@ static void fwd_pckt(struct rte_mbuf *pckt, unsigned port_id, struct rte_hash *r
     rte_ether_addr_copy(dmac, &eth->dst_addr);
 
 #ifdef DEBUG
-    printf("Packet forwarding from %hhx:%hhx:%hhx:%hhx:%hhx:%hhx => %hhx:%hhx:%hhx:%hhx:%hhx:%hhx.\n", eth->src_addr.addr_bytes[0], eth->src_addr.addr_bytes[1], eth->src_addr.addr_bytes[2], eth->src_addr.addr_bytes[3], eth->src_addr.addr_bytes[4], eth->src_addr.addr_bytes[5], eth->dst_addr.addr_bytes[0], eth->dst_addr.addr_bytes[1], eth->dst_addr.addr_bytes[2], eth->dst_addr.addr_bytes[3], eth->dst_addr.addr_bytes[4], eth->dst_addr.addr_bytes[5]);
+    printf("Packet forwarding from " RTE_ETHER_ADDR_PRT_FMT " => " RTE_ETHER_ADDR_PRT_FMT ".\n", RTE_ETHER_ADDR_BYTES(&eth->src_addr), RTE_ETHER_ADDR_BYTES(&eth->dst_addr));
 #endif
     
     // Otherwise, forward packet.
