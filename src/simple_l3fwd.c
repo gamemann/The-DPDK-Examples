@@ -145,7 +145,7 @@ static int scan_route_table_and_add(const char *file, struct rte_hash *route_tbl
  * 
  * @return Void
 **/
-static void fwd_pckt(struct rte_mbuf *pckt, unsigned portid, struct rte_hash *route_tbl)
+static void fwd_pckt(struct rte_mbuf *pckt, unsigned port_id, struct rte_hash *route_tbl)
 {
     // Data points to the start of packet data within the mbuf.
     void *data = pckt->buf_addr + pckt->data_off;
@@ -206,7 +206,7 @@ static void fwd_pckt(struct rte_mbuf *pckt, unsigned portid, struct rte_hash *ro
     struct rte_eth_dev_tx_buffer *buffer;
 
     // Retrieve what port we're going out of and TX buffer to use.
-    dst_port = dst_ports[portid];
+    dst_port = dst_ports[port_id];
     buffer = tx_buffer[dst_port];
     
     rte_eth_tx_buffer(dst_port, 0, buffer, pckt);
