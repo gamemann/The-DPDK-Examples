@@ -230,13 +230,7 @@ static void pckt_loop(void)
     }
 
     // Log message.
-    RTE_LOG(INFO, USER1, "Looping with lcore %u.\n", lcore_id);
-
-    // 
-    for (i = 0; i < qconf->num_rx_ports; i++)
-    {
-        port_id = qconf->rx_port_list[i];
-    }
+    RTE_LOG(INFO, USER1, "Looping lcore %u with %u RX ports/queues.\n", lcore_id, qconf->num_rx_ports);
 
     // Create while loop relying on quit variable.
     while (!quit)
