@@ -104,5 +104,28 @@ Here's an example:
 ./simple_l3fwd -l 0-1 -n 1 -- -q 1 -p 0xff -s
 ```
 
+### Rate Limit (Tested And Working)
+In this application, if a source IP equals or exceeds the packets per second or bytes per second specified in the command line, the packets are dropped. Otherwise, the ethernet and IP addresses are swapped along with the TCP/UDP ports and the packet is forwarded back out the TX path.
+
+Packet stats are also included with the `-s` flag.
+
+The following command line options are supported.
+
+```
+-p --portmask => The port mask to configure (e.g. 0xFFFF).
+-P --portmap => The port map to configure (in '(x, y),(b,z)' format).
+-q --queues => The amount of RX and TX queues to setup per port (default and recommended value is 1).
+-x --promisc => Whether to enable promiscuous on all enabled ports.
+-s --stats => If specified, will print real-time packet counter stats to stdout.
+--pps => The packets per second to limit each source IP to.
+--bps => The bytes per second to limit each source IP to.
+```
+
+Here's an example:
+
+```
+./ratelimit -l 0-1 -n 1 -- -q 1 -p 0xff -s
+```
+
 ## Credits
 * [Christian Deacon](https://github.com/gamemann)
