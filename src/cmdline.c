@@ -17,6 +17,8 @@ int parsecmdline(struct cmdline *cmd, int argc, char **argv)
         {"queues", required_argument, NULL, 'q'},
         {"promisc", no_argument, NULL, 'x'},
         {"stats", no_argument, NULL, 's'},
+        {"pps", required_argument, NULL, 1},
+        {"bps", required_argument, NULL, 2},
         {NULL, 0, NULL, 0}
     };
 
@@ -67,6 +69,23 @@ int parsecmdline(struct cmdline *cmd, int argc, char **argv)
 
                 break;
 
+            /* For rate limit application */
+            case 1:
+            {
+                char *val = strdup(optarg);
+                cmd->pps = strtoull((const char *)val, (char **)val, 0);
+
+                break;
+            }
+
+            case 2:
+            {
+                char *val = strdup(optarg);
+                cmd->bps = strtoull((const char *)val, (char **)val, 0);
+
+                break;
+            }
+            
             case '?':
                 fprintf(stdout, "Missing argument.\n");
 
