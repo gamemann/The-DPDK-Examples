@@ -16,6 +16,9 @@ SIMPLEL3FWDOUT := simple_l3fwd
 DROPUDP8080SRC := dropudp8080.c
 DROPUDP8080OUT := dropudp8080
 
+RATELIMITSRC := ratelimit.c
+RATELIMITOUT := ratelimit
+
 PKGCONF ?= pkg-config
 
 # Build using pkg-config variables if possible
@@ -48,9 +51,11 @@ cmdlinebuild: Makefile $(PC_FILE) | build
 main: commonbuild cmdlinebuild $(OBJS) $(SIMPLE_L2FWD) $(DROPUDP8080) Makefile $(PC_FILE) | build
 	$(CC) -I $(COMMONDIR)/$(SRCDIR) -pthread $(CFLAGS) $(SRCDIR)/$(SIMPLEL3FWDSRC) -o $(BUILDDIR)/$(SIMPLEL3FWDOUT) $(LDFLAGS) $(OBJS) $(LDFLAGS_SHARED)
 	$(CC) -I $(COMMONDIR)/$(SRCDIR) -pthread $(CFLAGS) $(SRCDIR)/$(DROPUDP8080SRC) -o $(BUILDDIR)/$(DROPUDP8080OUT) $(LDFLAGS) $(OBJS) $(LDFLAGS_SHARED)
+	$(CC) -I $(COMMONDIR)/$(SRCDIR) -pthread $(CFLAGS) $(SRCDIR)/$(RATELIMITSRC) -o $(BUILDDIR)/$(RATELIMITOUT) $(LDFLAGS) $(OBJS) $(LDFLAGS_SHARED)
 install:
 	ln -s $(BUILDDIR)/$(SIMPLEL3FWDOUT) /usr/include/$(SIMPLEL3FWDOUT)
 	ln -s $(BUILDDIR)/$(DROPUDP8080OUT) /usr/include/$(DROPUDP8080OUT)
+	ln -s $(BUILDDIR)/$(RATELIMITOUT) /usr/include/$(RATELIMITOUT)
 clean:
 	rm -f $(BUILDDIR)/*
 	$(MAKE) -C $(COMMONDIR) clean
