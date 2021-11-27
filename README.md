@@ -1,10 +1,10 @@
-# The DPDK Examples (WIP)
+# The DPDK Examples
 ## Description
 A small repository I will be using to store my progress and test programs from [the DPDK](https://www.dpdk.org/), a kernel bypass library very useful for fast packet processing.
 
 This repository uses my DPDK Common [project](https://github.com/gamemann/The-DPDK-Common) in an effort to make things simpler.
 
-**WARNING** - This project is still a work in-progress. Files will be incomplete.
+**WARNING** - I am still adding more examples as time goes on and I need to test new functionality/methods.
 
 ## Requirements
 * [The DPDK](https://dpdk.org) - Intel's Data Plane Development Kit which acts as a kernel bypass library which allows for fast network packet processing (one of the fastest libraries out there for packet processing).
