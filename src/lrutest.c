@@ -15,6 +15,8 @@
 #include <rte_hash.h>
 #include <rte_jhash.h>
 
+#define MAX_TABLE_SIZE 100
+
 /**
  * The main function call.
  * 
@@ -38,7 +40,7 @@ int main(int argc, char **argv)
     {
         .name = "rate_limits",
         .key_len = sizeof(__u32),
-        .entries = 100,
+        .entries = MAX_TABLE_SIZE,
         .hash_func = rte_jhash,
         .socket_id = rte_socket_id()
     };
@@ -55,9 +57,9 @@ int main(int argc, char **argv)
     for (int i = 1; i < 1000; i++)
     {
         // Check with overflow.
-        if (i > 100)
+        if (i > MAX_TABLE_SIZE)
         {
-            if (pos > 99)
+            if (pos > (MAX_TABLE_SIZE - 1))
             {
                 pos = 0;
             }
