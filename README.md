@@ -127,6 +127,8 @@ Here's an example:
 ./ratelimit -l 0-1 -n 1 -- -q 1 -p 0xff -s
 ```
 
+**NOTE** - This application supports LRU recyling via a custom function I made in the DPDK Common [project](https://github.com/gamemann/The-DPDK-Common), `check_and_del_lru_from_hash_table()`. Make sure to define `USE_HASH_TABLES` before including the DPDK Common header file when using this function.
+
 ### Least Recently Used Test (Tested And Working)
 This is a small application that implements a manual LRU method for hash tables. For a while I've been trying to get LRU tables to work from [these](http://code.dpdk.org/dpdk/latest/source/lib/table) libraries. However, I had zero success in actually getting the table initialized.
 
