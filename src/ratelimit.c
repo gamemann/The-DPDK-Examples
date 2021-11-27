@@ -11,12 +11,13 @@
 #include <signal.h>
 #include <pthread.h>
 
+// Define for The DPDK Common to give us LRU recycle function.
+#define USE_HASH_TABLES
+
 #include <dpdk_common.h>
 #include <rte_ip.h>
 #include <rte_tcp.h>
 #include <rte_udp.h>
-#include <rte_hash.h>
-#include <rte_jhash.h>
 
 #include "cmdline.h"
 
@@ -30,6 +31,8 @@
 #define PROTOCOL_UDP 0x11
 #define PROTOCOL_TCP 0x06
 
+#define MAX_TABLE_SIZE 100
+
 struct rate_limit
 {
     __u64 pps;
@@ -38,7 +41,7 @@ struct rate_limit
     __u64 lastupdate;
 };
 
-#define DEBUG
+//#define DEBUG
 
 __u64 pckts_forwarded = 0;
 __u64 pckts_dropped = 0;
@@ -200,15 +203,29 @@ static void inspect_pckt(struct rte_mbuf *pckt, unsigned port_id, void *rl_tbl, 
     }
     else
     {
-        // We'll want to insert a new entry into the table.
-        struct rate_limit newrl = 
+        // Check LRU table.
+        if (check_and_del_lru_from_hash_table(rl_tbl, MAX_TABLE_SIZE) == 0)
         {
-            .pps = 1,
-            .bps = pckt->pkt_len,
-            .lastupdate = ts
-        };
+#ifdef DEBUG
+            printf("Adding new IP to table (LRU check valid).\n");
+#endif
 
-        rte_hash_add_key_data(rl_tbl, &iph->src_addr, &newrl);
+            // We'll want to insert a new entry into the table.
+            struct rate_limit newrl = 
+            {
+                .pps = 1,
+                .bps = pckt->pkt_len,
+                .lastupdate = ts
+            };
+
+            rte_hash_add_key_data(rl_tbl, &iph->src_addr, &newrl);
+        }
+#ifdef DEBUG
+        else
+        {
+            printf("LRU recyle failed.\n");
+        }
+#endif
     }
 
     // Swap MAC addresses.
@@ -527,7 +544,7 @@ int main(int argc, char **argv)
     {
         .name = "rate_limits",
         .key_len = sizeof(__u32),
-        .entries = 100000,
+        .entries = MAX_TABLE_SIZE,
         .hash_func = rte_jhash,
         .socket_id = rte_socket_id()
     };
