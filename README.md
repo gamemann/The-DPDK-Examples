@@ -127,5 +127,18 @@ Here's an example:
 ./ratelimit -l 0-1 -n 1 -- -q 1 -p 0xff -s
 ```
 
+### Least Recently Used Test (Tested And Working)
+This is a small application that implements a manual LRU method for hash tables. For a while I've been trying to get LRU maps to work from [these](http://code.dpdk.org/dpdk/latest/source/lib/table) libraries. However, I had zero success in actually getting the map initialized.
+
+Therefore, I decided to keep using [these](http://code.dpdk.org/dpdk/latest/source/lib/hash) libaries instead and implement my own LRU fuctionality. I basically use the `rte_hash_get_key_with_position()` function to retrieve the key to delete. However, it appears the new key is inserted at the index that was deleted so you have to keep incrementing the position value up to the max entries of the table. With that said, once the position value exceeds the maximum table entries, you need to set it back to 0.
+
+No command line options are needed, but EAL parameters are still supported. Though, they won't make a difference.
+
+Here's an example:
+
+```
+./ratelimit
+```
+
 ## Credits
 * [Christian Deacon](https://github.com/gamemann)
