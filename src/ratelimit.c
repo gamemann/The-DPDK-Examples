@@ -31,7 +31,7 @@
 #define PROTOCOL_UDP 0x11
 #define PROTOCOL_TCP 0x06
 
-#define MAX_TABLE_SIZE 100
+#define MAX_TABLE_SIZE 100000
 
 struct rate_limit
 {
