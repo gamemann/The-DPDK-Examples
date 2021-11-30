@@ -55,9 +55,9 @@ main: commonbuild cmdlinebuild $(OBJS) Makefile $(PC_FILE) | build
 	$(CC) -I $(COMMONDIR)/$(SRCDIR) -pthread $(CFLAGS) $(SRCDIR)/lrutest.c -o $(BUILDDIR)/lrutest $(LDFLAGS) $(OBJS) $(LDFLAGS_SHARED)
 
 install:
-	ln -s $(BUILDDIR)/$(SIMPLEL3FWDOUT) /usr/include/$(SIMPLEL3FWDOUT)
-	ln -s $(BUILDDIR)/$(DROPUDP8080OUT) /usr/include/$(DROPUDP8080OUT)
-	ln -s $(BUILDDIR)/$(RATELIMITOUT) /usr/include/$(RATELIMITOUT)
+	cp $(BUILDDIR)/$(SIMPLEL3FWDOUT) /usr/bin/$(SIMPLEL3FWDOUT)
+	cp $(BUILDDIR)/$(DROPUDP8080OUT) /usr/bin/$(DROPUDP8080OUT)
+	cp $(BUILDDIR)/$(RATELIMITOUT) /usr/bin/$(RATELIMITOUT)
 clean:
 	rm -f $(BUILDDIR)/*
 	$(MAKE) -C $(COMMONDIR) clean
