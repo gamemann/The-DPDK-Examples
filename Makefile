@@ -48,7 +48,7 @@ commonbuild:
 	$(MAKE) -C $(COMMONDIR)
 cmdlinebuild: Makefile $(PC_FILE) | build
 	$(CC) -I $(COMMONDIR)/$(SRCDIR) -c $(CFLAGS) -o $(BUILDDIR)/$(CMDLINEOBJ) $(LDFLAGS) $(LDFLAGS_SHARED) $(SRCDIR)/$(CMDLINESRC)
-main: commonbuild cmdlinebuild $(OBJS) $(SIMPLE_L2FWD) $(DROPUDP8080) Makefile $(PC_FILE) | build
+main: commonbuild cmdlinebuild $(OBJS) Makefile $(PC_FILE) | build
 	$(CC) -I $(COMMONDIR)/$(SRCDIR) -pthread $(CFLAGS) $(SRCDIR)/$(SIMPLEL3FWDSRC) -o $(BUILDDIR)/$(SIMPLEL3FWDOUT) $(LDFLAGS) $(OBJS) $(LDFLAGS_SHARED)
 	$(CC) -I $(COMMONDIR)/$(SRCDIR) -pthread $(CFLAGS) $(SRCDIR)/$(DROPUDP8080SRC) -o $(BUILDDIR)/$(DROPUDP8080OUT) $(LDFLAGS) $(OBJS) $(LDFLAGS_SHARED)
 	$(CC) -I $(COMMONDIR)/$(SRCDIR) -pthread $(CFLAGS) $(SRCDIR)/$(RATELIMITSRC) -o $(BUILDDIR)/$(RATELIMITOUT) $(LDFLAGS) $(OBJS) $(LDFLAGS_SHARED)
