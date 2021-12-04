@@ -444,11 +444,6 @@ int main(int argc, char **argv)
     // Populate our destination ports.
     dpdkc_populate_dst_ports();
 
-    // Initialize the port and queue combination for each l-core.
-    ret = dpdkc_ports_queues_mapping();
-
-    dpdkc_check_ret(&ret);
-
     // Initialize mbuf pool.
     ret = dpdkc_create_mbuf();
 
@@ -458,6 +453,11 @@ int main(int argc, char **argv)
     ret = dpdkc_ports_queues_init(cmd.promisc, 1, 1);
 
     // Check for error and fail with it if there is.
+    dpdkc_check_ret(&ret);
+
+    // Initialize the port and l-core mappings.
+    ret = dpdkc_ports_queues_mapping();
+
     dpdkc_check_ret(&ret);
 
     // Check for available ports.
