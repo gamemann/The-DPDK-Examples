@@ -25,9 +25,15 @@ LRUTESTOUT := lruout
 LRUTABLETESTSRC := lru_table_test.c
 LRUTABLETESTOUT := lru_table_test
 
-GLOBALFLAGS := -pthread
+BENCHJHASHGHASHSRC := bench_jhash_ghash.c
+BENCHJHASHGHASHOUT := bench_jhash_ghash
+
+GLOBALFLAGS := -O2 -pthread
 
 PKGCONF ?= pkg-config
+
+# Get GLib CFLAGS and libraries.
+GLIBFLAGS := $(shell $(PKGCONF) --cflags --libs glib-2.0)
 
 # Build using pkg-config variables if possible
 ifneq ($(shell $(PKGCONF) --exists libdpdk && echo 0),0)
@@ -56,15 +62,15 @@ commonbuild:
 	$(MAKE) -C $(COMMONDIR)
 cmdlinebuild: Makefile $(PC_FILE) | build
 	$(CC) -I $(COMMONDIR)/$(SRCDIR) -c $(CFLAGS) -o $(BUILDDIR)/$(CMDLINEOBJ) $(LDFLAGS) $(LDFLAGS_STATIC) $(SRCDIR)/$(CMDLINESRC)
-main: commonbuild cmdlinebuild $(OBJS) Makefile $(PC_FILE) | build tbl
+main: commonbuild cmdlinebuild $(OBJS) Makefile $(PC_FILE) | build tbl bench
 	$(CC) -I $(COMMONDIR)/$(SRCDIR) $(GLOBALFLAGS) $(CFLAGS) $(SRCDIR)/$(SIMPLEL3FWDSRC) -o $(BUILDDIR)/$(SIMPLEL3FWDOUT) $(LDFLAGS) $(OBJS) $(LDFLAGS_STATIC)
 	$(CC) -I $(COMMONDIR)/$(SRCDIR) $(GLOBALFLAGS) $(CFLAGS) $(SRCDIR)/$(DROPUDP8080SRC) -o $(BUILDDIR)/$(DROPUDP8080OUT) $(LDFLAGS) $(OBJS) $(LDFLAGS_STATIC)
 	$(CC) -I $(COMMONDIR)/$(SRCDIR) $(GLOBALFLAGS) $(CFLAGS) $(SRCDIR)/$(RATELIMITSRC) -o $(BUILDDIR)/$(RATELIMITOUT) $(LDFLAGS) $(OBJS) $(LDFLAGS_STATIC)
 	$(CC) -I $(COMMONDIR)/$(SRCDIR) $(GLOBALFLAGS) $(CFLAGS) $(SRCDIR)/$(LRUTESTSRC) -o $(BUILDDIR)/$(LRUTESTOUT) $(LDFLAGS) $(OBJS) $(LDFLAGS_STATIC)
-
 tbl:
 	$(CC) -I $(COMMONDIR)/$(SRCDIR) $(GLOBALFLAGS) $(CFLAGS) $(SRCDIR)/$(LRUTABLETESTSRC) -o $(BUILDDIR)/$(LRUTABLETESTOUT) $(LDFLAGS) $(OBJS) $(LDFLAGS_STATIC)
-
+bench:
+	$(CC) -I $(COMMONDIR)/$(SRCDIR) $(GLOBALFLAGS) $(CFLAGS) $(SRCDIR)/$(BENCHJHASHGHASHSRC) -o $(BUILDDIR)/$(BENCHJHASHGHASHOUT) $(GLIBFLAGS) $(LDFLAGS) $(OBJS) $(LDFLAGS_STATIC)
 install:
 	cp $(BUILDDIR)/$(SIMPLEL3FWDOUT) /usr/bin/$(SIMPLEL3FWDOUT)
 	cp $(BUILDDIR)/$(DROPUDP8080OUT) /usr/bin/$(DROPUDP8080OUT)
